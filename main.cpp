@@ -25,11 +25,15 @@ class Vehicle {
 public:
     int nowPos;
 
-    Vehicle(int s, int e) : start(s), end(e) {
+    Vehicle() : start(rand() % 4), end(rand() % 4) {
         this->setArea();
         this->nowPos = -1;
     }
 
+    Vehicle(int s, int e) : start(s), end(e) {
+        this->setArea();
+        this->nowPos = -1;
+    }
 
     inline queue<int> getArea() {
         return this->area;
@@ -41,7 +45,7 @@ public:
         } else {
             cainot::area[nowPos]++; // 原区域不再被占用
             cainot::vehicles[nowPos].pop();
-            this->area.pop(); // 已经走过了区域就去除掉
+            this->area.pop(); // 已经走过了的区域就去除掉
             nowPos++; // 向前移动一个单位
         }
         return nowPos <= end; // 如果已到达终点，则最后再移动一步就OK了，取==是为了方便代码编写
@@ -50,11 +54,11 @@ public:
 private:
     void setArea() {
         int endPos = this->end;
-        if (this->start == this->end) {
-            endPos = 4;
-        }
+
+        if (this->start >= endPos)
+            endPos = 4 + this->end;
         for (int i = this->start; i < endPos; i++) {
-            this->area.push(i);
+            this->area.push(i % 4);
         }
     }
 
@@ -119,6 +123,10 @@ int main() {
         t.detach();
     }
 
+    Route wR(W), sR(S), eR(E), nR(N);
+
+    thread workThread;
+    thread waitThreadW, waitThreadS, waitThreadE, waitThreadN;
 
     getchar();
     /**
