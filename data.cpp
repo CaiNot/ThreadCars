@@ -1,38 +1,58 @@
 //
 // Created by CaiNot on 2018/9/28 21:36.
 //
+
 #include "data.h"
 
-void cainot::work() { // å¯¹é¢†åŸŸä¸­çš„è½¦è¾†è¿›è¡Œç§»åŠ¨ï¼Œæ¯æ¬¡è°ƒç”¨éƒ½ç§»åŠ¨ä¸€ä¸ªå•ä½
-    int vehiclesInOneArea = 0;
+void cainot::work(Route *route[4]) { // ¶ÔÁìÓòÖĞµÄ³µÁ¾½øĞĞÒÆ¶¯£¬Ã¿´Îµ÷ÓÃ¶¼ÒÆ¶¯Ò»¸öµ¥Î»
+    bool isEnd = true;
     for (int i = 0; i < 4; i++) {
-        vehiclesInOneArea = area[i];
-        for (int j = 0; j < vehiclesInOneArea; j++) {
-            Vehicle v = vehicles[i].front();
-            cout << v.nowPos << "->";
-            v.move();
-            cout << v.nowPos << "," << endl;
-            /**
-             * æŠŠvæ”¾åˆ°æœ€åé¢å»ã€‚
-             */
-
-            lock_guard<mutex> lockGuard(my_mutex);// ä¿®æ”¹å˜é‡æ—¶å¯¹å…¶é”å®šã€‚
-
-            vehicles[i].pop();
-            vehicles[i].push(v);
-        }
+        isEnd = isEnd && route[i]->isEnd();
     }
+    while (!isEnd) {
+        int vehiclesInOneArea = 0;
+        for (int i = 0; i < 4; i++) {
+            vehiclesInOneArea = area[i];// area
+            for (int j = 0; j < 4 - vehiclesInOneArea; j++) {
+
+                Vehicle *v = vehicles[i].front();
+
+
+                cout << v->nowPos << "->";
+                if (v->move()) {
+                    cout << "¶¯Éí->";
+                } else {
+                    cout << "leave at ";
+                }
+                lock_guard<mutex> lockGuard(my_mutex);// ĞŞ¸Ä±äÁ¿Ê±¶ÔÆäËø¶¨¡£
+
+                vehicles[i].pop();
+
+                cout << v->nowPos << "," << endl;
+
+
+            }
+        }
+        isEnd = true;
+        for (int i = 0; i < 4; i++) {
+            isEnd = isEnd && route[i]->isEnd();
+//            cout << i << route[i]->isEnd();
+        }
+//        cout << "isEnd" << isEnd << endl;
+    }
+    cout << "what a !!" << endl;
 }
 
-void cainot::ready(Route route) {
-    while (!route.isEnd()) {
-        while (route.canMoveVehicle()) {
-            route.moveVehicle();
+void cainot::ready(Route *route) {
+    while (!route->isEnd()) {
+        while (route->canMoveVehicle()) {
+            route->moveVehicle();
         }
     }
+    cout << route->getDirection() << "end" << endl;
 }
 
-Vehicle::Vehicle() : start(rand() % 4), end(rand() % 4) {
+Vehicle::Vehicle(int s) : start(s), end(rand() % 4) {
     this->setArea();
     this->nowPos = -1;
 }
@@ -47,18 +67,27 @@ inline queue<int> Vehicle::getArea() {
 }
 
 bool Vehicle::move() {
-    if (nowPos == -1) { // åŸæ¥åœ¨ç­‰å¾…é˜Ÿåˆ—
+    if (nowPos == -1) { // Ô­À´ÔÚµÈ´ı¶ÓÁĞ
         nowPos = this->start;
     } else {
+//        cout << nowPos << endl;
+        lock_guard<mutex> lockGuard(my_mutex);// ĞŞ¸Ä±äÁ¿Ê±¶ÔÆäËø¶¨¡£
 
-        lock_guard<mutex> lockGuard(my_mutex);// ä¿®æ”¹å˜é‡æ—¶å¯¹å…¶é”å®šã€‚
-
-        cainot::area[nowPos]++; // åŸåŒºåŸŸä¸å†è¢«å ç”¨
-        cainot::vehicles[nowPos].pop();
-        this->area.pop(); // å·²ç»èµ°è¿‡äº†çš„åŒºåŸŸå°±å»é™¤æ‰
-        nowPos++; // å‘å‰ç§»åŠ¨ä¸€ä¸ªå•ä½
+        if (nowPos > 4) {
+            cout << "Error" << this->start << endl;
+            exit(-2);
+        }
+        cainot::area[nowPos]++; // Ô­ÇøÓò²»ÔÙ±»Õ¼ÓÃ
+//        cainot::vehicles[nowPos].pop();
+        if (this->area.empty()) {
+            cout << "Error" << this->start << endl;
+//            cout  << endl;
+            exit(-1);
+        }
+        this->area.pop(); // ÒÑ¾­×ß¹ıÁËµÄÇøÓò¾ÍÈ¥³ıµô
+        nowPos++; // ÏòÇ°ÒÆ¶¯Ò»¸öµ¥Î»
     }
-    return nowPos <= end; // å¦‚æœå·²åˆ°è¾¾ç»ˆç‚¹ï¼Œåˆ™æœ€åå†ç§»åŠ¨ä¸€æ­¥å°±OKäº†ï¼Œå–==æ˜¯ä¸ºäº†æ–¹ä¾¿ä»£ç ç¼–å†™
+    return nowPos < end; // Èç¹ûÒÑµ½´ïÖÕµã£¬Ôò×îºóÔÙÒÆ¶¯Ò»²½¾ÍOKÁË£¬È¡==ÊÇÎªÁË·½±ã´úÂë±àĞ´
 }
 
 void Vehicle::setArea() {
@@ -71,27 +100,28 @@ void Vehicle::setArea() {
     }
 }
 
-bool Route::canMoveVehicle() { // è®¾è®¡å¯¹è±¡æ˜¯å¯¹ç­‰å¾…é˜Ÿåˆ—ä¸­çš„ç¬¬ä¸€ä¸ªåšæ£€æŸ¥
+bool Route::canMoveVehicle() { // Éè¼Æ¶ÔÏóÊÇ¶ÔµÈ´ı¶ÓÁĞÖĞµÄµÚÒ»¸ö×ö¼ì²é
     if (vehicles.empty()) {
         return false;
     }
-    Vehicle v = vehicles.front();
+    Vehicle *v = vehicles.front();
+//    cout << v.start << "³ö·¢" << endl;
     int oneArea = 0;
-    queue<int> vArea = v.getArea();
+    queue<int> vArea = v->getArea();
     int count = 0;
     while (!vArea.empty()) {
         oneArea = vArea.front();
         count++;
-        if (count == 2) { // ä¸¤ç§æƒ…å†µï¼Œå½“ç¬¬ä¸€ä¸ªé¢†åŸŸæœªè¢«å é¢†ï¼Œç¬¬äºŒä¸ªé¢†åŸŸæœ‰ä»–çš„åŒåƒšæ—¶ã€‚
-            queue<Vehicle> vQ = cainot::vehicles[oneArea];
+        if (count == 2) { // Á½ÖÖÇé¿ö£¬µ±µÚÒ»¸öÁìÓòÎ´±»Õ¼Áì£¬µÚ¶ş¸öÁìÓòÓĞËûµÄÍ¬ÁÅÊ±¡£
+            queue<Vehicle *> vQ = cainot::vehicles[oneArea];
             while (!vQ.empty()) {
-                if (vQ.front().start == v.start) {
+                if (vQ.front()->start == v->start) {
                     return true;
                 }
                 vQ.pop();
             }
         }
-        if (cainot::area[oneArea] <= 0) { // å½“è¯¥é¢†åŸŸè¢«å é¢†æ—¶
+        if (cainot::area[oneArea] <= 0) { // µ±¸ÃÁìÓò±»Õ¼ÁìÊ±
             return false;
         }
 
@@ -100,28 +130,41 @@ bool Route::canMoveVehicle() { // è®¾è®¡å¯¹è±¡æ˜¯å¯¹ç­‰å¾…é˜Ÿåˆ—ä¸­çš„ç¬¬ä¸€ä¸ªå
     return true;
 }
 
-void Route::moveVehicle() { // è®¾è®¡å¯¹è±¡æ˜¯å¯¹ç­‰å¾…é˜Ÿåˆ—ä¸­çš„ç¬¬ä¸€ä¸ªç§»åŠ¨
-    Vehicle v = vehicles.front();
+void Route::moveVehicle() { // Éè¼Æ¶ÔÏóÊÇ¶ÔµÈ´ı¶ÓÁĞÖĞµÄµÚÒ»¸öÒÆ¶¯
+    Vehicle *v = vehicles.front();
+//    lock_guard<mutex> lockGuard(my_mutex);// ĞŞ¸Ä±äÁ¿Ê±¶ÔÆäËø¶¨¡£
+    cout << v->start << "³ö·¢" << endl;
+    v->move();
+
     int oneArea = 0;
-    queue<int> vArea = v.getArea();
+    queue<int> vArea = v->getArea();
 
     while (!vArea.empty()) {
         oneArea = vArea.front();
         vArea.pop();
 
-        lock_guard<mutex> lockGuard(my_mutex);// ä¿®æ”¹å˜é‡æ—¶å¯¹å…¶é”å®šã€‚
+        lock_guard<mutex> lockGuard(my_mutex);// ĞŞ¸Ä±äÁ¿Ê±¶ÔÆäËø¶¨¡£
         cainot::area[oneArea]--;
         cainot::vehicles[oneArea].push(v);
     }
-    v.move();
 
-    this->vehicles.pop(); // æ¯ä¸ªçº¿ç¨‹å¯¹åº”ä¸åŒçš„this->vehiclesã€‚
+
+    this->vehicles.pop(); // Ã¿¸öÏß³Ì¶ÔÓ¦²»Í¬µÄthis->vehicles¡£
 }
 
 bool Route::isEnd() {
     return this->vehicles.empty();
 }
 
-void Route::setRandom() {
+void Route::addVehiclesRandom(int n) {
+
+    Vehicle *v = 0;
+    default_random_engine e;
+    for (int i = 0; i < n; i++) {
+        v = new Vehicle(this->direction, e() % 4);
+        this->vehicles.push(v);
+        cout << "car end in " << v->getArea().back() << endl;
+    }
+    cout << "Ìí¼ÓÍê³É£¬³É¹¦Ìí¼ÓÁË" << n << "Á¾³µÓÚ·½Ïò" << this->direction << endl;
 
 }

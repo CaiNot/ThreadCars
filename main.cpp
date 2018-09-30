@@ -1,24 +1,45 @@
 #include "data.h"
 #include <iostream>
 
+using namespace std;
+
 int main() {
 
     for (uint8_t i = 0; i < 4; i++) {
 //        thread t(output, i);
-        //t.join(); ä½¿ç”¨joinè¡¨ç¤ºå­çº¿ç¨‹ç»“æŸä¹‹åŽå†è¿è¡Œä¸»çº¿ç¨‹
+        //t.join(); Ê¹ÓÃjoin±íÊ¾×ÓÏß³Ì½áÊøÖ®ºóÔÙÔËÐÐÖ÷Ïß³Ì
 //        t.detach();
     }
 
     Route wR(W), sR(S), eR(E), nR(N);
 
-    thread workThread(cainot::work);
+    wR.addVehiclesRandom(6);
+    sR.addVehiclesRandom(3);
+    eR.addVehiclesRandom(2);
+    nR.addVehiclesRandom(7);
 
-    thread waitThreadW(cainot::ready, wR), waitThreadS(cainot::ready, sR),
-            waitThreadE(cainot::ready, eR), waitThreadN(cainot::ready, nR);
+    cout << "³õÊ¼»¯Íê±Ï" << endl;
+//    getchar();
+    Route *routes[4] = {&wR, &sR, &eR, &nR};
+//    cout << nR.isEnd() << endl;
+//    cout << wR.isEnd() << endl;
 
-    getchar();
+    thread workThread(cainot::work, routes);
+//
+    thread waitThreadW(cainot::ready, &wR), waitThreadS(cainot::ready, &sR),
+            waitThreadE(cainot::ready, &eR), waitThreadN(cainot::ready, &nR);
+//    cainot::ready(wR);
+//    cout << wR.isEnd() << endl;
+//    cout << nR.isEnd() << endl;
+
+
+//    cainot::work(false);
+//    workThread.join();
+    waitThreadW.join();
+    workThread.join();
+    cout << "END!!!!" << endl;
     /**
-     * å¦‚æžœmainç»“æŸäº†ï¼Œå­çº¿ç¨‹ä¹Ÿä¼šç»“æŸï¼Œæ‰€ä»¥ï¼Œå¼ºè¡Œä¸ç»“æŸã€‚
+     * Èç¹ûmain½áÊøÁË£¬×ÓÏß³ÌÒ²»á½áÊø£¬ËùÒÔ£¬Ç¿ÐÐ²»½áÊø¡£
     **/
     return 0;
 }

@@ -10,6 +10,7 @@
 #include <thread>
 #include <queue>
 #include <mutex>
+#include <random>
 
 #define W 0
 #define S 1
@@ -18,17 +19,17 @@
 
 using namespace std;
 
-mutex my_mutex;
+static mutex my_mutex;
 
 class Vehicle;
 class Route;
 
 namespace cainot {
-    int area[4] = {4, 4, 4, 4};
-    queue<Vehicle> vehicles[4];
+    static int area[4] = {4, 4, 4, 4};
+    static queue<Vehicle*> vehicles[4];
 
-    void work();
-    void ready(Route route);
+    void work(Route * route[4]);
+    void ready(Route *route);
 }
 
 class Vehicle {
@@ -36,7 +37,7 @@ public:
     int nowPos;
     const int start;
 
-    Vehicle();
+    Vehicle(int s);
 
     Vehicle(int s, int e);
 
@@ -56,7 +57,7 @@ private:
 class Route {
     const int direction;
 public:
-    queue<Vehicle> vehicles;
+    queue<Vehicle*> vehicles;
 
     Route(int d) : direction(d) {}
 
@@ -64,7 +65,7 @@ public:
         return direction;
     }
 
-    void setRandom();
+    void addVehiclesRandom(int n);
 
     bool isEnd();
 
