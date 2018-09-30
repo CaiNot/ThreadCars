@@ -13,7 +13,8 @@ int main() {
 
     thread workThread(cainot::work);
 
-    thread waitThreadW, waitThreadS, waitThreadE, waitThreadN;
+    thread waitThreadW(cainot::ready, wR), waitThreadS(cainot::ready, sR),
+            waitThreadE(cainot::ready, eR), waitThreadN(cainot::ready, nR);
 
     getchar();
     /**
