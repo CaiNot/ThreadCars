@@ -5,51 +5,65 @@
 #include "data.h"
 
 void cainot::work(Route *route[4]) { // 对领域中的车辆进行移动，每次调用都移动一个单位
+    /**
+     * 线程任务，把路口的车依次清掉一台
+     **/
     bool isEnd = true;
     for (int i = 0; i < 4; i++) {
         isEnd = isEnd && route[i]->isEnd();
     }
+
     while (!isEnd) {
         int vehiclesInOneArea = 0;
         for (int i = 0; i < 4; i++) {
             vehiclesInOneArea = area[i];// area
-            for (int j = 0; j < 4 - vehiclesInOneArea; j++) {
-
+            for (int j = 0; j < vehiclesInOneArea; j++) {
+                /**
+                 *  我只需要把应该要离开该路口的车给删掉就好，别管他现在在哪。
+                 **/
+//                if (vehicles[i].empty()) {
+//                    cout << "Error" << endl;
+//                }
                 Vehicle *v = vehicles[i].front();
 
+                lock_guard<mutex> lockGuard(my_mutex);
+                if (v->nowPos == i) {
+                    vehicles[i].pop();
+                    area[i]--;
 
-                cout << v->nowPos << "->";
-                if (v->move()) {
-                    cout << "动身->";
+                    cout << v->getID() << " from " << v->start << " end at " << v->end << " now at " << i;
+
+                    v->nowPos = (v->nowPos + 1) % 4;
+                    if (v->nowPos == v->end) {
+                        cout << "\tleave " << ++leaveCars << endl;
+                        delete v;
+                    } else cout << endl;
                 } else {
-                    cout << "leave at ";
+                    vehicles[i].push(v);// 放到尾部
+                    vehicles[i].pop();
                 }
-                lock_guard<mutex> lockGuard(my_mutex);// 修改变量时对其锁定。
-
-                vehicles[i].pop();
-
-                cout << v->nowPos << "," << endl;
-
-
             }
+//            cout << i << " " << area[i] << endl;
         }
         isEnd = true;
         for (int i = 0; i < 4; i++) {
-            isEnd = isEnd && route[i]->isEnd();
-//            cout << i << route[i]->isEnd();
+            isEnd = isEnd && (!area[i]) && route[i]->isEnd();
+//            cout << route[i]->isEnd() << " ";
         }
-//        cout << "isEnd" << isEnd << endl;
+        cout << endl;
     }
-    cout << "what a !!" << endl;
 }
 
 void cainot::ready(Route *route) {
     while (!route->isEnd()) {
-        while (route->canMoveVehicle()) {
+        while (1) {
+            lock_guard<mutex> lockGuard(my_mutex);
+            if (!route->canMoveVehicle())
+                break;
             route->moveVehicle();
         }
     }
-    cout << route->getDirection() << "end" << endl;
+//    cout << "AAAAAA" << endl;
 }
 
 Vehicle::Vehicle(int s) : start(s), end(rand() % 4) {
@@ -77,15 +91,26 @@ bool Vehicle::move() {
             cout << "Error" << this->start << endl;
             exit(-2);
         }
-        cainot::area[nowPos]++; // 原区域不再被占用
+
+        cainot::area[nowPos]--; // 原区域不再被占用
 //        cainot::vehicles[nowPos].pop();
+
         if (this->area.empty()) {
-            cout << "Error" << this->start << endl;
+            cout << "Error" << this->id << endl;
 //            cout  << endl;
             exit(-1);
         }
         this->area.pop(); // 已经走过了的区域就去除掉
         nowPos++; // 向前移动一个单位
+    }
+
+    if (nowPos < end) {
+        return true;
+    } else {
+        lock_guard<mutex> lockGuard(my_mutex);// 修改变量时对其锁定。
+//        int ans[2] = {this->id, 1};
+        result.push_back(this->id);
+        cout << "len" << result.size() << "len" << endl;
     }
     return nowPos < end; // 如果已到达终点，则最后再移动一步就OK了，取==是为了方便代码编写
 }
@@ -100,8 +125,21 @@ void Vehicle::setArea() {
     }
 }
 
+int Vehicle::setID(int n) {
+    this->id = n;
+    return this->id;
+}
+
+int Vehicle::getID() {
+    return this->id;
+}
+
+void Vehicle::showLast() {
+
+}
+
 bool Route::canMoveVehicle() { // 设计对象是对等待队列中的第一个做检查
-    if (vehicles.empty()) {
+    if (this->vehicles.empty()) {
         return false;
     }
     Vehicle *v = vehicles.front();
@@ -110,7 +148,7 @@ bool Route::canMoveVehicle() { // 设计对象是对等待队列中的第一个做检查
     queue<int> vArea = v->getArea();
     int count = 0;
     while (!vArea.empty()) {
-        oneArea = vArea.front();
+        oneArea = vArea.front(); // 这不是第一个领域啊。。。！！！这就是第一个！这是队列啊！！！
         count++;
         if (count == 2) { // 两种情况，当第一个领域未被占领，第二个领域有他的同僚时。
             queue<Vehicle *> vQ = cainot::vehicles[oneArea];
@@ -121,33 +159,27 @@ bool Route::canMoveVehicle() { // 设计对象是对等待队列中的第一个做检查
                 vQ.pop();
             }
         }
-        if (cainot::area[oneArea] <= 0) { // 当该领域被占领时
+        if (cainot::area[oneArea] >= 4) { // 当该领域被占领时
             return false;
         }
-
         vArea.pop();
     }
     return true;
 }
 
 void Route::moveVehicle() { // 设计对象是对等待队列中的第一个移动
-    Vehicle *v = vehicles.front();
-//    lock_guard<mutex> lockGuard(my_mutex);// 修改变量时对其锁定。
-    cout << v->start << "出发" << endl;
-    v->move();
+    Vehicle *v = this->vehicles.front();
 
     int oneArea = 0;
     queue<int> vArea = v->getArea();
+    v->nowPos = v->start;
 
     while (!vArea.empty()) {
         oneArea = vArea.front();
         vArea.pop();
-
-        lock_guard<mutex> lockGuard(my_mutex);// 修改变量时对其锁定。
-        cainot::area[oneArea]--;
+        cainot::area[oneArea]++;
         cainot::vehicles[oneArea].push(v);
     }
-
 
     this->vehicles.pop(); // 每个线程对应不同的this->vehicles。
 }
@@ -157,14 +189,13 @@ bool Route::isEnd() {
 }
 
 void Route::addVehiclesRandom(int n) {
-
     Vehicle *v = 0;
     default_random_engine e;
     for (int i = 0; i < n; i++) {
         v = new Vehicle(this->direction, e() % 4);
+        v->setID(vehicleNum++);
         this->vehicles.push(v);
-        cout << "car end in " << v->getArea().back() << endl;
+        cout << "car " << v->getID() << " end in " << v->end << endl;
     }
     cout << "添加完成，成功添加了" << n << "辆车于方向" << this->direction << endl;
-
 }
