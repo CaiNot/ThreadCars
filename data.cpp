@@ -19,11 +19,8 @@ void cainot::work(Route *route[4]) { // 对领域中的车辆进行移动，每次调用都移动一
             vehiclesInOneArea = area[i];// area
             for (int j = 0; j < vehiclesInOneArea; j++) {
                 /**
-                 *  我只需要把应该要离开该路口的车给删掉就好，别管他现在在哪。
+                 *  我只需要把应该要离开该路口的车给删掉就好。
                  **/
-//                if (vehicles[i].empty()) {
-//                    cout << "Error" << endl;
-//                }
                 Vehicle *v = vehicles[i].front();
 
                 lock_guard<mutex> lockGuard(my_mutex);
@@ -43,12 +40,10 @@ void cainot::work(Route *route[4]) { // 对领域中的车辆进行移动，每次调用都移动一
                     vehicles[i].pop();
                 }
             }
-//            cout << i << " " << area[i] << endl;
         }
         isEnd = true;
         for (int i = 0; i < 4; i++) {
             isEnd = isEnd && (!area[i]) && route[i]->isEnd();
-//            cout << route[i]->isEnd() << " ";
         }
         cout << endl;
     }
@@ -63,7 +58,6 @@ void cainot::ready(Route *route) {
             route->moveVehicle();
         }
     }
-//    cout << "AAAAAA" << endl;
 }
 
 Vehicle::Vehicle(int s) : start(s), end(rand() % 4) {
@@ -80,40 +74,6 @@ inline queue<int> Vehicle::getArea() {
     return this->area;
 }
 
-bool Vehicle::move() {
-    if (nowPos == -1) { // 原来在等待队列
-        nowPos = this->start;
-    } else {
-//        cout << nowPos << endl;
-        lock_guard<mutex> lockGuard(my_mutex);// 修改变量时对其锁定。
-
-        if (nowPos > 4) {
-            cout << "Error" << this->start << endl;
-            exit(-2);
-        }
-
-        cainot::area[nowPos]--; // 原区域不再被占用
-//        cainot::vehicles[nowPos].pop();
-
-        if (this->area.empty()) {
-            cout << "Error" << this->id << endl;
-//            cout  << endl;
-            exit(-1);
-        }
-        this->area.pop(); // 已经走过了的区域就去除掉
-        nowPos++; // 向前移动一个单位
-    }
-
-    if (nowPos < end) {
-        return true;
-    } else {
-        lock_guard<mutex> lockGuard(my_mutex);// 修改变量时对其锁定。
-//        int ans[2] = {this->id, 1};
-        result.push_back(this->id);
-        cout << "len" << result.size() << "len" << endl;
-    }
-    return nowPos < end; // 如果已到达终点，则最后再移动一步就OK了，取==是为了方便代码编写
-}
 
 void Vehicle::setArea() {
     int endPos = this->end;
@@ -134,16 +94,12 @@ int Vehicle::getID() {
     return this->id;
 }
 
-void Vehicle::showLast() {
-
-}
 
 bool Route::canMoveVehicle() { // 设计对象是对等待队列中的第一个做检查
     if (this->vehicles.empty()) {
         return false;
     }
     Vehicle *v = vehicles.front();
-//    cout << v.start << "出发" << endl;
     int oneArea = 0;
     queue<int> vArea = v->getArea();
     int count = 0;

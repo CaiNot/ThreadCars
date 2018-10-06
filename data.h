@@ -26,7 +26,7 @@ class Route;
 namespace cainot {
     static int area[4] = {0, 0, 0, 0};
     static queue<Vehicle *> vehicles[4];
-    static int leaveCars=0;
+    extern int leaveCars;
 
     void work(Route *route[4]);
 
@@ -49,9 +49,6 @@ public:
 
     inline queue<int> getArea();
 
-    bool move();
-
-    void showLast();
 
 private:
     void setArea();
